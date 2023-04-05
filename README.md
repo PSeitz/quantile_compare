@@ -10,7 +10,7 @@ Test with different distributions and a real world data set based on air quality
 ### Comments
 
 - AllValues: Naive and Exact solution by storing all values in a sorted array.
-- TDigest: Fork of `https://github.com/MnO2/t-digest`. Fixing the most severe performance issues, but there's still a lot of headroom.
+- TDigest: Fork of https://github.com/MnO2/t-digest. Fixing the most severe performance issues, but there's still a lot of headroom.
 - HDRHistogram: Supports only u64 values, and is not viable for some use cases.
 - DDSketch: Fork of https://crates.io/crates/sketches-ddsketch. Added a simple serialization via serde.
 - DDSketch2: Fork of https://crates.io/crates/sketches-rust. Fixed some issues to make it usable. Pretty new crate, when testing. Some parts maybe not be finalized.

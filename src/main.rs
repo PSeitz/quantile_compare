@@ -28,6 +28,7 @@ fn main() {
 fn get_distributions() -> Vec<(&'static str, Box<dyn FnMut(usize) -> f64>)> {
     let dn = rand_distr::Normal::new(0.5f64, 0.2f64).unwrap();
     let dp = rand_distr::Pareto::new(5f64, 10f64).unwrap();
+    // Simulate webserver response times
     let lg_norm = rand_distr::LogNormal::new(2.996f64, 0.979f64).unwrap();
     let reader = BufReader::new(std::fs::File::open("PM10").unwrap());
 
@@ -69,19 +70,19 @@ fn get_distributions() -> Vec<(&'static str, Box<dyn FnMut(usize) -> f64>)> {
 
 #[allow(dead_code)]
 fn test_counts() {
-    //let counts = vec![10_000, 100_000, 1_000_000, 10_000_000, 100_000_000];
     let counts = vec![
         vec![1_000],
         vec![1_000_000],
         vec![5_000_000],
-        vec![10, 100, 150, 1_000, 3_000_000, 1_000_000],
+        vec![1_000, 3_000_000, 1_000_000],
     ];
     //let ckms_error = 0.0001;
-    let gk_error = 0.001;
+    //let gk_error = 0.001;
     //let zw_error = 0.001;
     let hdr_sigfig = 3;
-    let tdigest_batch = 1_000;
+    let tdigest_batch = 500;
     let tdigest_max_size = 300;
+    let dd2_err = 0.01;
 
     let mut distributions = get_distributions();
 
@@ -94,15 +95,15 @@ fn test_counts() {
             //let mut zw = ZWQuantile::new(zw_error);
             let hdr = || HDRHistogram::new(hdr_sigfig);
             let dd = || DDSketch::new();
-            let dd2 = || DDSketch2::unbounded(0.01);
+            let dd2 = || DDSketch2::unbounded(dd2_err);
 
             println!(
-                "\nCOUNT=[{}], GK_ERROR_CONFIG={}, TDIGEST_BATCH={}, TDIGEST_MAX_SIZE={}, HDR_SIGFIG={}",
+                "\nCOUNT=[{}], TDIGEST_BATCH={}, TDIGEST_MAX_SIZE={}, HDR_SIGFIG={}, DDSketch2Err={}",
                 pretty_print_count(&count_group),
-                gk_error,
                 tdigest_batch.separate_with_underscores(),
                 tdigest_max_size,
-                hdr_sigfig
+                hdr_sigfig,
+                dd2_err,
             );
             let mut table = get_markdown_table();
             table.set_titles(row![

@@ -1,4 +1,4 @@
-# Quantile Compare
+# Quantile Compare / Benchmark
 
 Compare different quantile algorithms in rust in terms of performance, memory usage and accuracy.
 

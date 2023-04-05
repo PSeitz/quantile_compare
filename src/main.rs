@@ -4,7 +4,10 @@ use hdrhistogram::{
     serialization::{Serializer, V2Serializer},
     Histogram,
 };
-use prettytable::{row, Cell, Row, Table};
+use prettytable::{
+    format::{FormatBuilder, LinePosition, LineSeparator},
+    row, Cell, Row, Table,
+};
 use rand::{rngs::StdRng, SeedableRng};
 use rand_distr::Distribution;
 use zw_fast_quantile::UnboundEpsilonSummary;
@@ -101,8 +104,7 @@ fn test_counts() {
                 tdigest_max_size,
                 hdr_sigfig
             );
-            //println!("    NORMAL DISTRIBITION");
-            let mut table = Table::new();
+            let mut table = get_markdown_table();
             table.set_titles(row![
                 "Distribution",
                 "Algorithm",
@@ -143,7 +145,6 @@ fn pretty_print_count(count_group: &[usize]) -> String {
 
 #[allow(dead_code)]
 fn test_sketch_params() {
-    //let counts = vec![10_000, 100_000, 1_000_000, 10_000_000, 100_000_000];
     let counts = vec![
         vec![1_000],
         vec![1_000_000],
@@ -155,7 +156,7 @@ fn test_sketch_params() {
 
     for (distr, distribution) in &mut distributions {
         for count_group in counts.iter().cloned() {
-            let mut table = Table::new();
+            let mut table = get_markdown_table();
             let count_str = pretty_print_count(&count_group);
 
             println!("\nCOUNT=[{}]", count_str);
@@ -206,6 +207,21 @@ fn test_sketch_params() {
     }
 }
 
+fn get_markdown_table() -> Table {
+    let mut table = Table::new();
+
+    let minus_pipe_sep: LineSeparator = LineSeparator::new('-', '|', '|', '|');
+    let format_markdown = FormatBuilder::new()
+        .padding(1, 1)
+        .borders('|')
+        .separator(LinePosition::Title, minus_pipe_sep)
+        .column_separator('|')
+        .build();
+    table.set_format(format_markdown);
+
+    table
+}
+
 #[allow(dead_code)]
 fn test_digest_params() {
     let counts = vec![
@@ -219,7 +235,7 @@ fn test_digest_params() {
 
     for (distr, distribution) in &mut distributions {
         for count_group in counts.iter().cloned() {
-            let mut table = Table::new();
+            let mut table = get_markdown_table();
             let count_str = pretty_print_count(&count_group);
 
             println!("\nCOUNT=[{}]", count_str);

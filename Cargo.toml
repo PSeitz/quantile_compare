@@ -22,6 +22,7 @@ sketches-rust = { version = "0.1.2"}
 itertools = "0.10.5"
 peakmem-alloc = "0.1.0"
 serde_json = "1.0.95"
+quantogram = "0.4.4"
 
 [profile.release]
 debug = true

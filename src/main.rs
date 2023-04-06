@@ -74,6 +74,7 @@ fn get_distributions() -> Vec<(&'static str, Box<dyn FnMut(usize) -> f64>)> {
 
 #[allow(dead_code)]
 fn test_counts() {
+    // If there are multiple counts, the Algorithm has to support `merge`.
     let counts = vec![
         vec![1_000],
         //vec![1_000_000],
@@ -102,6 +103,7 @@ fn test_counts() {
             let hdr = || HDRHistogram::new(hdr_sigfig);
             let dd = || DDSketch::new();
             let dd2 = || DDSketch2::unbounded(dd2_err);
+            let quanto = || Quantogram::new();
             //let dd3 = || DDSketch2::logarithmic_low(dd2_err);
             //let dd4 = || DDSketch2::logarithmic_high(dd2_err);
 
@@ -138,6 +140,12 @@ fn test_counts() {
             test(&count_group, hdr, distribution, table.add_row(row![distr]));
             test(&count_group, dd, distribution, table.add_row(row![distr]));
             test(&count_group, dd2, distribution, table.add_row(row![distr]));
+            test(
+                &count_group,
+                quanto,
+                distribution,
+                table.add_row(row![distr]),
+            );
             //test(&count_group, dd3, distribution, table.add_row(row![distr]));
             //test(&count_group, dd4, distribution, table.add_row(row![distr]));
 
@@ -310,9 +318,16 @@ trait Aggregate {
         0
     }
     fn insert(&mut self, value: f64);
-    fn merge(other: Vec<Self>) -> Self
+
+    fn merge(mut other: Vec<Self>) -> Option<Self>
     where
-        Self: Sized;
+        Self: Sized,
+    {
+        if other.len() == 1 {
+            return other.pop();
+        }
+        None
+    }
 
     fn get_percentiles(&mut self) -> Percentiles {
         self.finalize();
@@ -337,6 +352,7 @@ impl From<f64> for Percentile {
 }
 
 #[allow(dead_code)]
+#[derive(Default)]
 struct TestResult {
     pub name: String,
     pub run_time: f64,
@@ -395,9 +411,22 @@ fn test<A: Aggregate, F: Fn() -> A>(
                 aggregate.finalize();
                 aggregate
             })
-            .collect()
+            .collect::<Vec<_>>()
     };
-    let mut aggregate = A::merge(aggregates);
+    let name = aggregates[0].name().to_string();
+    let mut aggregate = if let Some(aggregate) = A::merge(aggregates) {
+        aggregate
+    } else {
+        // Unsupported
+        // Fill cells
+        row.add_cell(Cell::new(&name));
+        for _ in 1..4 + SELECTED_PERCENTILES.len() {
+            row.add_cell(Cell::new(&"NaN"));
+        }
+
+        return TestResult::default();
+    };
+
     let percentiles = aggregate.get_percentiles();
     let elapsed = start.elapsed().as_secs_f64();
     let peak_memory = GLOBAL.get_peak_memory();
@@ -451,7 +480,7 @@ impl Aggregate for AllValues {
         self.values.len() * 8
     }
 
-    fn merge(mut other: Vec<Self>) -> Self
+    fn merge(mut other: Vec<Self>) -> Option<Self>
     where
         Self: Sized,
     {
@@ -459,7 +488,7 @@ impl Aggregate for AllValues {
         for el in other {
             first.values.extend_from_slice(&el.values);
         }
-        first
+        Some(first)
     }
 
     fn finalize(&mut self) {
@@ -492,12 +521,12 @@ impl Aggregate for QuantilesCKMS {
     fn insert(&mut self, value: f64) {
         self.q.insert(value);
     }
-    fn merge(mut other: Vec<Self>) -> Self {
+    fn merge(mut other: Vec<Self>) -> Option<Self> {
         let mut first = other.pop().unwrap();
         for el in other {
             first.q += el.q;
         }
-        first
+        Some(first)
     }
 
     fn get_quantil(&mut self, q: f64) -> f64 {
@@ -524,11 +553,11 @@ impl Aggregate for QuantilesGK {
         let value = unsafe { ordered_float::NotNan::new_unchecked(value) };
         self.q.insert(value);
     }
-    fn merge(mut other: Vec<Self>) -> Self {
+    fn merge(mut other: Vec<Self>) -> Option<Self> {
         if other.len() == 1 {
-            return other.pop().unwrap();
+            return other.pop();
         }
-        unimplemented!()
+        None
     }
 
     fn get_quantil(&mut self, q: f64) -> f64 {
@@ -582,18 +611,18 @@ impl Aggregate for TDigest {
         serde_json::to_string(&self.t).unwrap().len()
     }
 
-    fn merge(other: Vec<Self>) -> Self
+    fn merge(other: Vec<Self>) -> Option<Self>
     where
         Self: Sized,
     {
         let batch_size = other[0].batch_size;
         let ts: Vec<tdigest::TDigest> = other.into_iter().map(|el| el.t).collect();
         let t = tdigest::TDigest::merge_digests(ts);
-        Self {
+        Some(Self {
             batch: vec![],
             t,
             batch_size,
-        }
+        })
     }
 }
 
@@ -621,14 +650,14 @@ impl Aggregate for ZWQuantile {
         self.sum.update(value)
     }
 
-    fn merge(mut other: Vec<Self>) -> Self
+    fn merge(mut other: Vec<Self>) -> Option<Self>
     where
         Self: Sized,
     {
         if other.len() == 1 {
-            return other.pop().unwrap();
+            return other.pop();
         }
-        todo!()
+        None
     }
 }
 
@@ -662,12 +691,12 @@ impl Aggregate for HDRHistogram {
     fn insert(&mut self, value: f64) {
         self.histogram.record(value as u64).unwrap()
     }
-    fn merge(mut other: Vec<Self>) -> Self {
+    fn merge(mut other: Vec<Self>) -> Option<Self> {
         let mut first = other.pop().unwrap();
         for el in other {
             first.histogram += el.histogram;
         }
-        first
+        Some(first)
     }
 }
 
@@ -691,20 +720,18 @@ impl Aggregate for DDSketch {
         self.sketch.quantile(q).unwrap().unwrap()
     }
     fn serialize_size(&self) -> usize {
-        //let encoded: Vec<u8> = bincode::serialize(&self.sketch).unwrap();
-        //encoded.len()
         serde_json::to_string(&self.sketch).unwrap().len()
     }
 
     fn insert(&mut self, value: f64) {
         self.sketch.add(value)
     }
-    fn merge(mut other: Vec<Self>) -> Self {
+    fn merge(mut other: Vec<Self>) -> Option<Self> {
         let mut first = other.pop().unwrap();
         for el in other {
             first.sketch.merge(&el.sketch).unwrap();
         }
-        first
+        Some(first)
     }
 }
 
@@ -761,12 +788,40 @@ impl<I: IndexMapping, T: Store> Aggregate for DDSketch2<I, T> {
     fn insert(&mut self, value: f64) {
         self.sketch.accept(value)
     }
-    fn merge(mut other: Vec<Self>) -> Self {
+    fn merge(mut other: Vec<Self>) -> Option<Self> {
         let mut first = other.pop().unwrap();
         for el in other.iter_mut() {
             first.sketch.merge_with(&mut el.sketch).unwrap();
         }
-        first
+        Some(first)
+    }
+}
+
+struct Quantogram {
+    quantogram: quantogram::Quantogram,
+}
+
+impl Quantogram {
+    fn new() -> Self {
+        Self {
+            quantogram: quantogram::Quantogram::new(),
+        }
+    }
+}
+impl Aggregate for Quantogram {
+    fn name(&self) -> &str {
+        "Quantogram"
+    }
+    fn get_quantil(&mut self, q: f64) -> f64 {
+        assert!(q >= 0f64 && q <= 1f64);
+        self.quantogram.quantile(q).unwrap()
+    }
+    fn serialize_size(&self) -> usize {
+        0
+    }
+
+    fn insert(&mut self, value: f64) {
+        self.quantogram.add(value)
     }
 }
 

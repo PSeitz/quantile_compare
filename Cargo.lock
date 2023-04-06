@@ -146,6 +146,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "float_extras"
+version = "0.1.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b22b70f8649ea2315955f1a36d964b0e4da482dfaa5f0d04df0d1fb7c338ab7a"
+dependencies = [
+ "libc",
+]
+
+[[package]]
 name = "getrandom"
 version = "0.2.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -334,6 +343,7 @@ dependencies = [
  "peakmem-alloc",
  "prettytable-rs",
  "quantiles",
+ "quantogram",
  "rand",
  "rand_distr",
  "rand_pcg",
@@ -350,6 +360,16 @@ name = "quantiles"
 version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c10fa813fb26fb6c321a6f3085b5ade4cb4730d08d0b9e70a3759136940957f2"
+
+[[package]]
+name = "quantogram"
+version = "0.4.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "77d61f6f89661d840abdcae69a8b2d9c8ce20e9e7dd2c52a78ab4377b435b343"
+dependencies = [
+ "float_extras",
+ "skiplist",
+]
 
 [[package]]
 name = "quote"
@@ -499,6 +519,15 @@ name = "sketches-rust"
 version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7d031beb3f2f36174f7bc5d1d96f8ef0e42cace01c7cfbf3c79674b9f52e7fe9"
+
+[[package]]
+name = "skiplist"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fa37347a2b4609765d113afe55f16636ccd42dadc1ad0d29030908d1bac4c95b"
+dependencies = [
+ "rand",
+]
 
 [[package]]
 name = "syn"

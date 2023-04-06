@@ -4,6 +4,7 @@ use hdrhistogram::{
     serialization::{Serializer, V2Serializer},
     Histogram,
 };
+use itertools::Itertools;
 use prettytable::{
     format::{FormatBuilder, LinePosition, LineSeparator},
     row, Cell, Row, Table,
@@ -28,6 +29,7 @@ fn main() {
 fn get_distributions() -> Vec<(&'static str, Box<dyn FnMut(usize) -> f64>)> {
     let dn = rand_distr::Normal::new(0.5f64, 0.2f64).unwrap();
     let dp = rand_distr::Pareto::new(5f64, 10f64).unwrap();
+    //let exp = rand_distr::Exp::new(0.6).unwrap();
     // Simulate webserver response times
     let lg_norm = rand_distr::LogNormal::new(2.996f64, 0.979f64).unwrap();
     let reader = BufReader::new(std::fs::File::open("PM10").unwrap());
@@ -43,6 +45,7 @@ fn get_distributions() -> Vec<(&'static str, Box<dyn FnMut(usize) -> f64>)> {
     let mut rng2 = StdRng::from_seed([1u8; 32]);
     let mut rng3 = StdRng::from_seed([1u8; 32]);
     let mut rng4 = StdRng::from_seed([1u8; 32]);
+    //let mut rng5 = StdRng::from_seed([1u8; 32]);
     let distributions: Vec<(&str, Box<dyn FnMut(usize) -> f64>)> = vec![
         (
             "Normal Distribution",
@@ -64,6 +67,7 @@ fn get_distributions() -> Vec<(&'static str, Box<dyn FnMut(usize) -> f64>)> {
             "PM10 Air Quality Dataset",
             Box::new(move |index| pm10_data[index % pm10_data.len()]),
         ),
+        //("Exp Distribution", Box::new(move |_| exp.sample(&mut rng5))),
     ];
     distributions
 }
@@ -72,14 +76,16 @@ fn get_distributions() -> Vec<(&'static str, Box<dyn FnMut(usize) -> f64>)> {
 fn test_counts() {
     let counts = vec![
         vec![1_000],
-        vec![1_000_000],
+        //vec![1_000_000],
         vec![5_000_000],
         vec![1_000, 3_000_000, 1_000_000],
+        (0..1000).map(|_| 1000).collect::<Vec<_>>(),
+        //(0..10000).map(|_| 100).collect::<Vec<_>>(),
     ];
     //let ckms_error = 0.0001;
     //let gk_error = 0.001;
     //let zw_error = 0.001;
-    let hdr_sigfig = 3;
+    let hdr_sigfig = 2;
     let tdigest_batch = 500;
     let tdigest_max_size = 300;
     let dd2_err = 0.01;
@@ -98,7 +104,7 @@ fn test_counts() {
             let dd2 = || DDSketch2::unbounded(dd2_err);
 
             println!(
-                "\nCOUNT=[{}], TDIGEST_BATCH={}, TDIGEST_MAX_SIZE={}, HDR_SIGFIG={}, DDSketch2Err={}",
+                "\nCOUNT={}, TDIGEST_BATCH={}, TDIGEST_MAX_SIZE={}, HDR_SIGFIG={}, DDSketch2Err={}",
                 pretty_print_count(&count_group),
                 tdigest_batch.separate_with_underscores(),
                 tdigest_max_size,
@@ -113,6 +119,8 @@ fn test_counts() {
                 "PeakMemory",
                 "SerializedSize",
                 "50.0",
+                "75.0",
+                "90.0",
                 "95.0",
                 "99.0",
                 "99.9",
@@ -126,9 +134,7 @@ fn test_counts() {
             test(&count_group, td, distribution, table.add_row(row![distr]));
             //test(count, &mut zw, distribution, table.add_row(row![distr]));
             test(&count_group, hdr, distribution, table.add_row(row![distr]));
-
             test(&count_group, dd, distribution, table.add_row(row![distr]));
-
             test(&count_group, dd2, distribution, table.add_row(row![distr]));
 
             table.printstd();
@@ -137,11 +143,22 @@ fn test_counts() {
 }
 
 fn pretty_print_count(count_group: &[usize]) -> String {
-    count_group
+    let all_same = count_group.iter().tuple_windows().all(|(a, b)| a == b);
+    if count_group.len() > 3 && all_same {
+        return format!(
+            "[{}, {}, ...x{}]",
+            count_group[0],
+            count_group[0],
+            count_group.len()
+        );
+    }
+    let yo = count_group
         .iter()
         .map(|el| el.separate_with_underscores())
         .collect::<Vec<_>>()
-        .join(", ")
+        .join(", ");
+
+    format!("[{}]", yo)
 }
 
 #[allow(dead_code)]
@@ -150,8 +167,10 @@ fn test_sketch_params() {
         vec![1_000],
         vec![1_000_000],
         vec![3_000_000],
-        vec![10, 100, 150, 1_000, 3_000_000, 1_000_000],
+        vec![1_000, 3_000_000, 1_000_000],
     ];
+
+    //let mut results = HashMap::default();
 
     let mut distributions = get_distributions();
 
@@ -160,7 +179,7 @@ fn test_sketch_params() {
             let mut table = get_markdown_table();
             let count_str = pretty_print_count(&count_group);
 
-            println!("\nCOUNT=[{}]", count_str);
+            println!("\nCOUNT={}", count_str);
 
             table.set_titles(row![
                 "Distribution",
@@ -169,6 +188,8 @@ fn test_sketch_params() {
                 "PeakMemory",
                 "SerializedSize",
                 "50.0",
+                "75.0",
+                "90.0",
                 "95.0",
                 "99.0",
                 "99.9",
@@ -239,7 +260,7 @@ fn test_digest_params() {
             let mut table = get_markdown_table();
             let count_str = pretty_print_count(&count_group);
 
-            println!("\nCOUNT=[{}]", count_str);
+            println!("\nCOUNT={}", count_str);
 
             table.set_titles(row![
                 "Distribution",
@@ -248,6 +269,8 @@ fn test_digest_params() {
                 "PeakMemory",
                 "SerializedSize",
                 "50.0",
+                "75.0",
+                "90.0",
                 "95.0",
                 "99.0",
                 "99.9",
@@ -261,7 +284,6 @@ fn test_digest_params() {
             let batch_sizes = vec![100usize];
             let max_sizes = vec![100, 200, 300, 500, 1000, 2000];
 
-            use itertools::Itertools;
             for (batch, max_size) in batch_sizes.iter().cartesian_product(max_sizes.iter()) {
                 test(
                     &count_group,
@@ -298,7 +320,7 @@ trait Aggregate {
     }
 }
 
-const SELECTED_PERCENTILES: [f64; 5] = [50.0, 95.0, 99.0, 99.9, 99.99];
+const SELECTED_PERCENTILES: [f64; 7] = [50.0, 75.0, 90.0, 95.0, 99.0, 99.9, 99.99];
 
 type Percentiles = Vec<Percentile>;
 struct Percentile {
@@ -310,28 +332,67 @@ impl From<f64> for Percentile {
     }
 }
 
+#[allow(dead_code)]
+struct TestResult {
+    pub name: String,
+    pub run_time: f64,
+    pub memory: usize,
+    pub percentiles: Percentiles,
+}
+
 ///
 fn test<A: Aggregate, F: Fn() -> A>(
     count_group: &[usize],
     aggregate: F,
     sampler: &mut Box<dyn FnMut(usize) -> f64>,
     row: &mut Row,
-) {
+) -> TestResult {
     let start = std::time::Instant::now();
     GLOBAL.reset_peak_memory();
 
-    let aggregates = count_group
-        .iter()
-        .map(|count| {
-            let mut aggregate = aggregate();
-            for i in 0..*count {
+    #[cfg(feature = "parallel-collect")]
+    let aggregates = {
+        let mut iters = count_group
+            .iter()
+            .map(|count| (0..*count, aggregate()))
+            .collect::<Vec<_>>();
+        let mut finished_aggregates = Vec::new();
+        let mut iter_index = 0;
+        loop {
+            let iter = &mut iters[iter_index];
+
+            if let Some(i) = iter.0.next() {
                 let value = sampler(i);
-                aggregate.insert(value);
+                iter.1.insert(value);
+            } else {
+                let mut aggregate = iters.remove(iter_index).1;
+                aggregate.finalize();
+                finished_aggregates.push(aggregate);
+                if iters.is_empty() {
+                    break;
+                }
             }
-            aggregate.finalize();
-            aggregate
-        })
-        .collect();
+
+            iter_index += 1;
+            iter_index %= iters.len();
+        }
+        finished_aggregates
+    };
+    #[cfg(not(feature = "parallel-collect"))]
+    let aggregates = {
+        count_group
+            .iter()
+            .map(|count| {
+                let mut aggregate = aggregate();
+                for i in 0..*count {
+                    let value = sampler(i);
+                    aggregate.insert(value);
+                }
+                aggregate.finalize();
+                aggregate
+            })
+            .collect()
+    };
     let mut aggregate = A::merge(aggregates);
     let percentiles = aggregate.get_percentiles();
     let elapsed = start.elapsed().as_secs_f64();
@@ -347,6 +408,13 @@ fn test<A: Aggregate, F: Fn() -> A>(
     }
     for percentile in percentiles {
         row.add_cell(Cell::new(&format!("{:.2}", percentile.value)));
+    }
+
+    TestResult {
+        name: aggregate.name().to_string(),
+        run_time: elapsed,
+        memory: peak_memory,
+        percentiles: aggregate.get_percentiles(),
     }
 }
 
@@ -467,18 +535,23 @@ impl Aggregate for QuantilesGK {
 
 struct TDigest {
     batch: Vec<f64>,
+    batch_size: usize,
     t: tdigest::TDigest,
 }
 impl TDigest {
-    fn new(batch: usize, max_size: usize) -> Self {
-        let batch = Vec::with_capacity(batch);
+    fn new(batch_size: usize, max_size: usize) -> Self {
+        let batch = Vec::new();
         let t = tdigest::TDigest::new_with_size(max_size);
-        TDigest { batch, t }
+        TDigest {
+            batch,
+            t,
+            batch_size,
+        }
     }
     fn apply_batch(&mut self) {
         self.batch.sort_unstable_by(|a, b| a.total_cmp(b));
 
-        self.t = self.t.merge_sorted(&self.batch);
+        self.t = self.t.merge_sorted(&mut self.batch);
         self.batch.clear();
     }
 }
@@ -494,23 +567,29 @@ impl Aggregate for TDigest {
         self.t.estimate_quantile(q)
     }
     fn insert(&mut self, value: f64) {
-        if self.batch.len() == self.batch.capacity() {
+        if self.batch.len() == self.batch_size {
             self.apply_batch();
         }
         self.batch.push(value);
     }
     fn serialize_size(&self) -> usize {
-        let encoded: Vec<u8> = bincode::serialize(&self.t).unwrap();
-        encoded.len()
+        //let encoded: Vec<u8> = bincode::serialize(&self.t).unwrap();
+        //encoded.len()
+        serde_json::to_string(&self.t).unwrap().len()
     }
 
     fn merge(other: Vec<Self>) -> Self
     where
         Self: Sized,
     {
+        let batch_size = other[0].batch_size;
         let ts: Vec<tdigest::TDigest> = other.into_iter().map(|el| el.t).collect();
         let t = tdigest::TDigest::merge_digests(ts);
-        Self { batch: vec![], t }
+        Self {
+            batch: vec![],
+            t,
+            batch_size,
+        }
     }
 }
 
@@ -608,8 +687,9 @@ impl Aggregate for DDSketch {
         self.sketch.quantile(q).unwrap().unwrap()
     }
     fn serialize_size(&self) -> usize {
-        let encoded: Vec<u8> = bincode::serialize(&self.sketch).unwrap();
-        encoded.len()
+        //let encoded: Vec<u8> = bincode::serialize(&self.sketch).unwrap();
+        //encoded.len()
+        serde_json::to_string(&self.sketch).unwrap().len()
     }
 
     fn insert(&mut self, value: f64) {

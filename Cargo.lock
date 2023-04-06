@@ -209,6 +209,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "itoa"
+version = "1.0.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "453ad9f582a441959e5f0d088b02ce04cfe8d51a8eaf077f12ac6d3e94164ca6"
+
+[[package]]
 name = "lazy_static"
 version = "1.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -331,6 +337,7 @@ dependencies = [
  "rand",
  "rand_distr",
  "rand_pcg",
+ "serde_json",
  "sketches-ddsketch",
  "sketches-rust",
  "tdigest",
@@ -443,6 +450,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4f3208ce4d8448b3f3e7d168a73f5e0c43a61e32930de3bceeccedb388b6bf06"
 
 [[package]]
+name = "ryu"
+version = "1.0.13"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f91339c0467de62360649f8d3e185ca8de4224ff281f66000de5eb2a77a79041"
+
+[[package]]
 name = "serde"
 version = "1.0.159"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -463,6 +476,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "serde_json"
+version = "1.0.95"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d721eca97ac802aa7777b701877c8004d950fc142651367300d21c1cc0194744"
+dependencies = [
+ "itoa",
+ "ryu",
+ "serde",
+]
+
+[[package]]
 name = "sketches-ddsketch"
 version = "0.2.0"
 source = "git+https://github.com/PSeitz/rust-sketches-ddsketch#f14e98a10ff8adeb118a20c5ef77c8773c2a99ea"
@@ -473,7 +497,7 @@ dependencies = [
 [[package]]
 name = "sketches-rust"
 version = "0.1.1"
-source = "git+https://github.com/PSeitz/sketches-rust#94258c48af34855d8ad1b161517e80853e6d3a5c"
+source = "git+https://github.com/loyispa/sketches-rust#eaef515230f6a8182a80ce4e16a1d2509602c672"
 
 [[package]]
 name = "syn"

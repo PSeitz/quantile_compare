@@ -102,6 +102,8 @@ fn test_counts() {
             let hdr = || HDRHistogram::new(hdr_sigfig);
             let dd = || DDSketch::new();
             let dd2 = || DDSketch2::unbounded(dd2_err);
+            //let dd3 = || DDSketch2::logarithmic_low(dd2_err);
+            //let dd4 = || DDSketch2::logarithmic_high(dd2_err);
 
             println!(
                 "\nCOUNT={}, TDIGEST_BATCH={}, TDIGEST_MAX_SIZE={}, HDR_SIGFIG={}, DDSketch2Err={}",
@@ -136,6 +138,8 @@ fn test_counts() {
             test(&count_group, hdr, distribution, table.add_row(row![distr]));
             test(&count_group, dd, distribution, table.add_row(row![distr]));
             test(&count_group, dd2, distribution, table.add_row(row![distr]));
+            //test(&count_group, dd3, distribution, table.add_row(row![distr]));
+            //test(&count_group, dd4, distribution, table.add_row(row![distr]));
 
             table.printstd();
         }
@@ -704,21 +708,45 @@ impl Aggregate for DDSketch {
     }
 }
 
-use sketches_rust::index_mapping::CubicallyInterpolatedMapping;
-use sketches_rust::store::Store;
 use sketches_rust::store::UnboundedSizeDenseStore;
-struct DDSketch2<T: Store> {
-    sketch: sketches_rust::DDSketch<CubicallyInterpolatedMapping, T>,
+use sketches_rust::store::{CollapsingHighestDenseStore, Store};
+use sketches_rust::{
+    index_mapping::{CubicallyInterpolatedMapping, IndexMapping, LogarithmicMapping},
+    store::CollapsingLowestDenseStore,
+};
+struct DDSketch2<I: IndexMapping, T: Store> {
+    sketch: sketches_rust::DDSketch<I, T>,
 }
 
-impl DDSketch2<UnboundedSizeDenseStore> {
+impl DDSketch2<CubicallyInterpolatedMapping, UnboundedSizeDenseStore> {
     fn unbounded(error: f64) -> Self {
         Self {
             sketch: sketches_rust::DDSketch::unbounded_dense(error).unwrap(),
         }
     }
 }
-impl<T: Store> Aggregate for DDSketch2<T> {
+
+impl DDSketch2<LogarithmicMapping, CollapsingLowestDenseStore> {
+    #[allow(unused)]
+    fn logarithmic_low(error: f64) -> Self {
+        Self {
+            sketch: sketches_rust::DDSketch::logarithmic_collapsing_lowest_dense(error, 2000)
+                .unwrap(),
+        }
+    }
+}
+
+impl DDSketch2<LogarithmicMapping, CollapsingHighestDenseStore> {
+    #[allow(unused)]
+    fn logarithmic_high(error: f64) -> Self {
+        Self {
+            sketch: sketches_rust::DDSketch::logarithmic_collapsing_highest_dense(error, 2000)
+                .unwrap(),
+        }
+    }
+}
+
+impl<I: IndexMapping, T: Store> Aggregate for DDSketch2<I, T> {
     fn name(&self) -> &str {
         "DDSketch2"
     }

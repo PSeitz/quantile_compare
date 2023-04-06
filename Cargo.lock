@@ -496,8 +496,9 @@ dependencies = [
 
 [[package]]
 name = "sketches-rust"
-version = "0.1.1"
-source = "git+https://github.com/loyispa/sketches-rust#eaef515230f6a8182a80ce4e16a1d2509602c672"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7d031beb3f2f36174f7bc5d1d96f8ef0e42cace01c7cfbf3c79674b9f52e7fe9"
 
 [[package]]
 name = "syn"

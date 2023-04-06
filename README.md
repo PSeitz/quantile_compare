@@ -16,7 +16,7 @@ To observe memory consumption with multiple collectors collecting at the same ti
 - TDigest: Fork of https://github.com/MnO2/t-digest. Fixing the most severe performance issues, but there's still a lot of headroom.
 - HDRHistogram: Supports only u64 values, and is not viable for some use cases.
 - DDSketch: Fork of https://crates.io/crates/sketches-ddsketch. Added a simple serialization via serde.
-- DDSketch2: https://crates.io/crates/sketches-rust. Pretty new crate, uses a faster alternative to `val.ln()` used by DDSketch.
+- DDSketch2: https://crates.io/crates/sketches-rust. Pretty new crate, has a cubically interpolated variant, which is faster than `val.ln()` used by DDSketch.
 
 #### Serialization
 Only HDRHistogram has a specialized implementation. For the others simply `serde::to_json()` is used.

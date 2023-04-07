@@ -313,12 +313,13 @@ trait Aggregate {
     fn name(&self) -> &str;
     fn finalize(&mut self) {}
     fn get_quantil(&mut self, q: f64) -> f64;
+    fn insert(&mut self, value: f64);
 
     fn serialize_size(&self) -> usize {
         0
     }
-    fn insert(&mut self, value: f64);
 
+    // Default implementation which covers the nothing to merge case
     fn merge(mut other: Vec<Self>) -> Option<Self>
     where
         Self: Sized,
@@ -472,6 +473,18 @@ impl Aggregate for AllValues {
     fn name(&self) -> &str {
         "AllValues"
     }
+    fn finalize(&mut self) {
+        self.values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+    }
+
+    fn get_quantil(&mut self, q: f64) -> f64 {
+        assert!(q >= 0f64 && q <= 1f64);
+
+        let index = (self.values.len() as f64 * q).ceil() as usize;
+        let index = index.min(self.values.len() - 1);
+        self.values[index] as f64
+    }
+
     fn insert(&mut self, value: f64) {
         self.values.push(value);
     }
@@ -490,18 +503,6 @@ impl Aggregate for AllValues {
         }
         Some(first)
     }
-
-    fn finalize(&mut self) {
-        self.values.sort_by(|a, b| a.partial_cmp(b).unwrap());
-    }
-
-    fn get_quantil(&mut self, q: f64) -> f64 {
-        assert!(q >= 0f64 && q <= 1f64);
-
-        let index = (self.values.len() as f64 * q).ceil() as usize;
-        let index = index.min(self.values.len() - 1);
-        self.values[index] as f64
-    }
 }
 
 struct QuantilesCKMS {
@@ -518,6 +519,10 @@ impl Aggregate for QuantilesCKMS {
     fn name(&self) -> &str {
         "QuantilesCKMS"
     }
+    fn get_quantil(&mut self, q: f64) -> f64 {
+        assert!(q >= 0f64 && q <= 1f64);
+        self.q.query(q).unwrap().1
+    }
     fn insert(&mut self, value: f64) {
         self.q.insert(value);
     }
@@ -527,11 +532,6 @@ impl Aggregate for QuantilesCKMS {
             first.q += el.q;
         }
         Some(first)
-    }
-
-    fn get_quantil(&mut self, q: f64) -> f64 {
-        assert!(q >= 0f64 && q <= 1f64);
-        self.q.query(q).unwrap().1
     }
 }
 
@@ -549,20 +549,13 @@ impl Aggregate for QuantilesGK {
     fn name(&self) -> &str {
         "QuantilesGK"
     }
-    fn insert(&mut self, value: f64) {
-        let value = unsafe { ordered_float::NotNan::new_unchecked(value) };
-        self.q.insert(value);
-    }
-    fn merge(mut other: Vec<Self>) -> Option<Self> {
-        if other.len() == 1 {
-            return other.pop();
-        }
-        None
-    }
-
     fn get_quantil(&mut self, q: f64) -> f64 {
         assert!(q >= 0f64 && q <= 1f64);
         **self.q.quantile(q)
+    }
+    fn insert(&mut self, value: f64) {
+        let value = unsafe { ordered_float::NotNan::new_unchecked(value) };
+        self.q.insert(value);
     }
 }
 
@@ -649,16 +642,6 @@ impl Aggregate for ZWQuantile {
         let value = unsafe { ordered_float::NotNan::new_unchecked(value) };
         self.sum.update(value)
     }
-
-    fn merge(mut other: Vec<Self>) -> Option<Self>
-    where
-        Self: Sized,
-    {
-        if other.len() == 1 {
-            return other.pop();
-        }
-        None
-    }
 }
 
 struct HDRHistogram {
@@ -679,6 +662,10 @@ impl Aggregate for HDRHistogram {
         assert!(q >= 0f64 && q <= 1f64);
         self.histogram.value_at_quantile(q) as f64
     }
+    fn insert(&mut self, value: f64) {
+        self.histogram.record(value as u64).unwrap()
+    }
+
     fn serialize_size(&self) -> usize {
         let mut vec = Vec::new();
         V2Serializer::new()
@@ -686,10 +673,6 @@ impl Aggregate for HDRHistogram {
             .unwrap();
 
         vec.len()
-    }
-
-    fn insert(&mut self, value: f64) {
-        self.histogram.record(value as u64).unwrap()
     }
     fn merge(mut other: Vec<Self>) -> Option<Self> {
         let mut first = other.pop().unwrap();
@@ -719,12 +702,12 @@ impl Aggregate for DDSketch {
         assert!(q >= 0f64 && q <= 1f64);
         self.sketch.quantile(q).unwrap().unwrap()
     }
-    fn serialize_size(&self) -> usize {
-        serde_json::to_string(&self.sketch).unwrap().len()
-    }
-
     fn insert(&mut self, value: f64) {
         self.sketch.add(value)
+    }
+
+    fn serialize_size(&self) -> usize {
+        serde_json::to_string(&self.sketch).unwrap().len()
     }
     fn merge(mut other: Vec<Self>) -> Option<Self> {
         let mut first = other.pop().unwrap();
@@ -781,12 +764,12 @@ impl<I: IndexMapping, T: Store> Aggregate for DDSketch2<I, T> {
         assert!(q >= 0f64 && q <= 1f64);
         self.sketch.get_value_at_quantile(q).unwrap()
     }
-    fn serialize_size(&self) -> usize {
-        0
-    }
-
     fn insert(&mut self, value: f64) {
         self.sketch.accept(value)
+    }
+
+    fn serialize_size(&self) -> usize {
+        0
     }
     fn merge(mut other: Vec<Self>) -> Option<Self> {
         let mut first = other.pop().unwrap();
@@ -816,12 +799,12 @@ impl Aggregate for Quantogram {
         assert!(q >= 0f64 && q <= 1f64);
         self.quantogram.quantile(q).unwrap()
     }
-    fn serialize_size(&self) -> usize {
-        0
-    }
-
     fn insert(&mut self, value: f64) {
         self.quantogram.add(value)
+    }
+
+    fn serialize_size(&self) -> usize {
+        0
     }
 }
 

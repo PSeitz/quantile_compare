@@ -7,7 +7,7 @@ Test with different distributions and a real world data set based on air quality
 ### Run Suite
 `cargo run --release`
 
-To observe memory consumption with multiple collectors collecting at the same time
+To observe memory consumption with multiple collectors collecting at the same time (without threading)
 `cargo run --release --features parallel-collect`
 
 ### Configuration
@@ -28,7 +28,13 @@ Only HDRHistogram has a specialized implementation. For the others simply `serde
 If there are multiple counts, that means they are collected and then merged.
 Run with `cargo run --release --features parallel-collect`
 
+# Contributing
+To add a quantile algorithm, simply implement the `Aggregate` trait.
 
+### TODO
+- Display in a graph 
+
+# Results
 
 COUNT=[1_000], TDIGEST_BATCH=500, TDIGEST_MAX_SIZE=300, HDR_SIGFIG=2, DDSketch2Err=0.01
 | Distribution        | Algorithm    | Time   | PeakMemory | SerializedSize | 50.0 | 75.0 | 90.0 | 95.0 | 99.0 | 99.9 | 99.99 |

@@ -10,6 +10,9 @@ Test with different distributions and a real world data set based on air quality
 To observe memory consumption with multiple collectors collecting at the same time
 `cargo run --release --features parallel-collect`
 
+### Configuration
+- Unbounded collection. No min, max information is provided to the algorithm.
+
 ### Comments
 
 - AllValues: Naive and Exact solution by storing all values in a sorted array.

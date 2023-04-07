@@ -19,7 +19,7 @@ To observe memory consumption with multiple instance collecting at the same time
 - HDRHistogram: Supports only u64 values, and is not viable for some use cases.
 - DDSketch: Fork of https://crates.io/crates/sketches-ddsketch. Added a simple serialization via serde.
 - DDSketch2: https://crates.io/crates/sketches-rust. Pretty new crate, has a cubically interpolated variant, which is faster than `val.ln()` used by DDSketch.
-- Quantogram: https://crates.io/crates/quantogram. Seems to be perform quite bad.
+- Quantogram: https://crates.io/crates/quantogram. (Relatively slow).
 
 Worse than just storing `AllValues` . (memory, speed, accuracy)
 * ZWQuantile: https://crates.io/crates/zw-fast-quantile (high memory, imprecise for `99.99` percentile)

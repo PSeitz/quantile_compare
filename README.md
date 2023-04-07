@@ -1,19 +1,17 @@
 # Quantile Compare / Benchmark
 
 Compare different quantile algorithms in rust in terms of performance, memory usage and accuracy.
+The quantile algorithms run unbounded, no min, max information is passed.
 
 Test with different distributions and a real world data set based on air quality.
 
-### Run Suite
+#### Run Suite
 `cargo run --release`
 
 To observe memory consumption with multiple collectors collecting at the same time (without threading)
 `cargo run --release --features parallel-collect`
 
-### Configuration
-- Unbounded collection. No min, max information is provided to the algorithm.
-
-### Comments
+#### Comments
 
 - AllValues: Naive and Exact solution by storing all values in a sorted array.
 - TDigest: Fork of https://github.com/MnO2/t-digest. Fixing the most severe performance issues, but there's still a lot of headroom.
@@ -28,13 +26,13 @@ Only HDRHistogram has a specialized implementation. For the others simply `serde
 If there are multiple counts, that means they are collected and then merged.
 Run with `cargo run --release --features parallel-collect`
 
-# Contributing
+## Contributing
 To add a quantile algorithm, simply implement the `Aggregate` trait.
 
-### TODO
+###$ TODO
 - Display in a graph 
 
-# Results
+## Results
 
 COUNT=[1_000], TDIGEST_BATCH=500, TDIGEST_MAX_SIZE=300, HDR_SIGFIG=2, DDSketch2Err=0.01
 | Distribution        | Algorithm    | Time   | PeakMemory | SerializedSize | 50.0 | 75.0 | 90.0 | 95.0 | 99.0 | 99.9 | 99.99 |

@@ -8,28 +8,34 @@ Test with different distributions and a real world data set based on air quality
 #### Run Suite
 `cargo run --release`
 
-To observe memory consumption with multiple collectors collecting at the same time (without threading)
+To observe memory consumption with multiple instance collecting at the same time (without threading)
+
 `cargo run --release --features parallel-collect`
 
-#### Comments
+### Algorithms
 
 - AllValues: Naive and Exact solution by storing all values in a sorted array.
 - TDigest: Fork of https://github.com/MnO2/t-digest. Fixing the most severe performance issues, but there's still a lot of headroom.
 - HDRHistogram: Supports only u64 values, and is not viable for some use cases.
 - DDSketch: Fork of https://crates.io/crates/sketches-ddsketch. Added a simple serialization via serde.
 - DDSketch2: https://crates.io/crates/sketches-rust. Pretty new crate, has a cubically interpolated variant, which is faster than `val.ln()` used by DDSketch.
+- Quantogram: https://crates.io/crates/quantogram. Seems to be perform quite bad.
+
+Worse than just storing `AllValues` . (memory, speed, accuracy)
+* ZWQuantile: https://crates.io/crates/zw-fast-quantile (high memory, imprecise for `99.99` percentile)
+* QuantilesCKMS: https://crates.io/crates/quantiles `quantiles::ckms::CKMS` (extremely slow, memory)
+* QuantilesGK: https://crates.io/crates/quantiles `quantiles::greenwald_khanna::Stream` (slow or imprecise, depends on settings)
 
 #### Serialization
 Only HDRHistogram has a specialized implementation. For the others simply `serde::to_json()` is used.
 
 #### Counts
 If there are multiple counts, that means they are collected and then merged.
-Run with `cargo run --release --features parallel-collect`
 
 ## Contributing
 To add a quantile algorithm, simply implement the `Aggregate` trait.
 
-###$ TODO
+#### TODO
 - Display in a graph 
 
 ## Results
